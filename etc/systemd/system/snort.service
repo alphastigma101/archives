@@ -1,1 +1,42 @@
-Globity glob 
+[Unit]
+Description=Snort Network Intrusion Detection System
+After=syslog.target network.target 
+
+
+
+[Service]
+#####################
+#### SERVICE TYPE
+#####################
+Type=simple
+
+#############
+### NOTES
+#############
+# As for April 2023, one cannot run the daemon as snort using -u and -g 
+# But here is the syntax and example of what it could look like:
+	#  ExecStart=/usr/local/bin/snort -Q --daq --daq-var device=br0 --daq-var queue=0 -u snort -g snort -c -A alert_unixsock
+	# -u and -g switch it from root to snort 
+	# -D tells the service file to run as a daemon
+# Downsides of running snort with nfq:
+	# You have to run it as root 
+	# You cannot use -i interface_name:interface_name (April 2023)
+	# It is a potentional security risk 
+	# snort must be configured in inline mode and not passive mode
+# Upside of running snort with nfq:
+	# You can use iptables with snort
+		# For example: 
+		 # iptables -A INPUT -p tcp --dport 22 -j NFQUEUE --queue-num 0
+		 # iptables -A INPUT -j NFQUEUE --queue-num 0
+	# snort3+ uses Netfilter Queue library(nfq) to capture packets.
+		# And it does not support capturing packets from a specific interface. 
+		# Instead, Snort3 captures packets from all interfaces that are matched by the configured netfilter rules.
+# -A tells it where it should output its alerts
+
+
+#####################
+#### EXECSTART
+#####################
+# ExecStart functions as if a person were to run commands in their terminal,console, or shell
+ExecStart=/usr/local/bin/snort -Q --daq nfq --daq-var queue=0 -D -l /run/snort/ -c /etc/snort/snort.lua --plugin-path /usr/local/snort/lib64/snort/plugins/extra/ -A alert_unixsock
+KillMode=process
